@@ -6,8 +6,10 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const outfit = Outfit({ subsets: ["latin"], variable: "--font-outfit" });
 
 export const metadata: Metadata = {
-  title: "PromptCreator | Engenharia de Prompt Sênior",
-  description: "Sistema avançado para geração de prompts estruturados usando frameworks IDEAL, RTF e CREATE.",
+  title: "PromptCreator",
+  description: "A ferramenta definitiva para Engenharia de Prompt. Gere estruturas profissionais usando IDEAL, RTF e CREATE por Quantum Lab.",
+  viewport: "width=device-width, initial-scale=1, maximum-scale=5",
+  themeColor: "#020617",
 };
 
 export default function RootLayout({
@@ -16,11 +18,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-BR">
+    <html lang="pt-BR" className="scroll-smooth">
       <head>
         <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>" />
       </head>
-      <body className={`${inter.variable} ${outfit.variable}`}>
+      <body className={`${inter.variable} ${outfit.variable} antialiased selection:bg-indigo-500/30 selection:text-indigo-200`}>
         {children}
       </body>
     </html>

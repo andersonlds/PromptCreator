@@ -1,10 +1,34 @@
 import { NextResponse } from "next/server";
 import { generateWithFallback } from "@/lib/gemini";
 import { Framework, PromptFormData } from "@/types/prompt";
+import { limiter } from "@/lib/rate-limit";
 
 export async function POST(req: Request) {
   try {
-    const { framework, data }: { framework: Framework, data: PromptFormData } = await req.json();
+    // 1. Rate Limiting (Proteção contra abusos)
+    // Tenta obter o IP do cabeçalho x-forwarded-for ou usa um fallback
+    const forwarded = req.headers.get("x-forwarded-for");
+    const ip = forwarded ? forwarded.split(/, /)[0] : "127.0.0.1";
+    
+    try {
+      await limiter.check(5, ip); // Limite de 5 requisições por minuto por IP
+    } catch {
+      return NextResponse.json(
+        { error: "Muitas requisições. Tente novamente em um minuto." }, 
+        { status: 429 }
+      );
+    }
+
+    // 2. Validação de Input
+    const body = await req.json();
+    const { framework, data }: { framework: Framework, data: PromptFormData } = body;
+
+    if (!framework || !data || !data.intent) {
+      return NextResponse.json(
+        { error: "Dados insuficientes para processar o prompt." }, 
+        { status: 400 }
+      );
+    }
 
     const systemPrompt = `Você é um Engenheiro de Prompt Sênior (Nível Master). 
     Refine os campos do framework ${framework}.
@@ -29,6 +53,9 @@ export async function POST(req: Request) {
     return NextResponse.json(improvedData);
   } catch (error: any) {
     console.error("Erro no processamento Gemini:", error.message);
-    return NextResponse.json({ error: error.message || "Erro na IA" }, { status: 500 });
+    return NextResponse.json(
+      { error: error.message || "Erro interno no servidor" }, 
+      { status: 500 }
+    );
   }
 }
