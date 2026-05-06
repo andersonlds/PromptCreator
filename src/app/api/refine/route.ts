@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { model } from "@/lib/gemini";
+import { generateWithFallback } from "@/lib/gemini";
 import { Framework, PromptFormData } from "@/types/prompt";
 
 export async function POST(req: Request) {
@@ -7,7 +7,7 @@ export async function POST(req: Request) {
     const { framework, data }: { framework: Framework, data: PromptFormData } = await req.json();
 
     const systemPrompt = `Você é um Engenheiro de Prompt Sênior (Nível Master). 
-    Utilize o poder do Gemini 2.5 para refinar os campos do framework ${framework}.
+    Refine os campos do framework ${framework}.
     Eleve a qualidade técnica, clareza e autoridade dos textos originais.
     
     DADOS:
@@ -15,7 +15,7 @@ export async function POST(req: Request) {
     
     Retorne estritamente o JSON atualizado com os novos textos profissionais.`;
 
-    const result = await model.generateContent({
+    const result = await generateWithFallback({
       contents: [{ role: "user", parts: [{ text: systemPrompt }] }],
       generationConfig: {
         responseMimeType: "application/json"
@@ -28,7 +28,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json(improvedData);
   } catch (error: any) {
-    console.error("Erro na SDK Gemini 2.5:", error.message);
+    console.error("Erro no processamento Gemini:", error.message);
     return NextResponse.json({ error: error.message || "Erro na IA" }, { status: 500 });
   }
 }

@@ -105,12 +105,26 @@ export default function PromptGenerator() {
         finalData = improvedData;
         setData(improvedData);
       } else {
-        console.error("IA retornou erro:", improvedData.error);
-        alert("Aviso: O Gemini não conseguiu refinar este prompt. Gerando versão local. Detalhe: " + improvedData.error);
+        const isQuotaError = improvedData.error?.includes("429") || improvedData.error?.toLowerCase().includes("quota");
+        
+        if (isQuotaError) {
+          const proceed = window.confirm(
+            "A cota do Google Gemini esgotou para este modelo.\n\n" +
+            "Deseja gerar o prompt exatamente como você digitou (sem refinamento da IA)?\n" +
+            "Se cancelar, a aplicação será reiniciada."
+          );
+          
+          if (!proceed) {
+            window.location.reload();
+            return;
+          }
+        } else {
+          alert("Aviso: O Gemini não conseguiu refinar este prompt. Gerando versão local. Detalhe: " + improvedData.error);
+        }
       }
     } catch (error: any) {
       console.error("Erro crítico na chamada da IA:", error);
-      alert("Falha técnica: " + (error.message || "Erro de rede") + ". Tente reiniciar o servidor (npm run dev).");
+      alert("Falha técnica: " + (error.message || "Erro de rede") + ". Tente reiniciar o servidor.");
     } finally {
       // 2. Sempre gera o prompt (seja com dados da IA ou locais)
       const result = formatPrompt(framework, finalData, cot);

@@ -3,22 +3,26 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 const apiKey = process.env.GOOGLE_API_KEY || "";
 const genAI = new GoogleGenerativeAI(apiKey);
 
-// Estratégia de Model Hunting: Lista de modelos em ordem de preferência
-const MODELS = [
-  "gemini-1.5-flash-002", // Estável e Rápido
-  "gemini-1.5-flash",     // Fallback Estável
-  "gemini-1.5-pro",       // Alta capacidade (se disponível)
-  "gemini-2.0-flash-exp"  // Experimental/Futuro
-];
+// Modelo fixo conforme solicitação do usuário
+const MODEL_NAME = "gemini-2.0-flash";
 
-export async function getStableModel() {
-  // Nota: Em implementações síncronas simples, usamos o primeiro da lista.
-  // Em fluxos complexos, poderíamos testar a disponibilidade.
-  return genAI.getGenerativeModel({ model: MODELS[0] });
+/**
+ * Executa a geração de conteúdo usando exclusivamente o modelo gemini-2.0-flash.
+ */
+export async function generateWithFallback(params: any) {
+  try {
+    console.log(`[Gemini] Usando modelo: ${MODEL_NAME}`);
+    const model = genAI.getGenerativeModel({ model: MODEL_NAME });
+    const result = await model.generateContent(params);
+    return result;
+  } catch (error: any) {
+    console.error(`[Gemini Error] Erro com o modelo ${MODEL_NAME}:`, error.message);
+    throw error;
+  }
 }
 
-// Exportando o modelo principal para compatibilidade imediata
-export const model = genAI.getGenerativeModel({ 
-  model: MODELS[0] 
-});
-
+// Exportações para compatibilidade
+export const model = genAI.getGenerativeModel({ model: MODEL_NAME });
+export function getStableModel() {
+  return genAI.getGenerativeModel({ model: MODEL_NAME });
+}
