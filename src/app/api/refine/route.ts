@@ -23,7 +23,20 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { framework, data }: { framework: Framework, data: PromptFormData } = body;
 
-    if (!framework || !data || !data.intent) {
+    if (!framework || !data) {
+      return NextResponse.json(
+        { error: "Dados insuficientes para processar o prompt." }, 
+        { status: 400 }
+      );
+    }
+
+    // Validação específica por framework para garantir que campos essenciais existam
+    let isValid = false;
+    if (framework === "IDEAL") isValid = !!data.intent;
+    else if (framework === "RTF") isValid = !!data.role && !!data.task;
+    else if (framework === "CREATE") isValid = !!data.character && !!data.request;
+
+    if (!isValid) {
       return NextResponse.json(
         { error: "Dados insuficientes para processar o prompt." }, 
         { status: 400 }
