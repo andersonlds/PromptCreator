@@ -3,7 +3,9 @@
 import { useState, useEffect, useRef } from "react";
 import { Copy, Sparkles, Wand2, Terminal, Zap, ChevronDown } from "lucide-react";
 import { gsap } from "gsap";
-import { Framework, PromptFormData } from "@/types/prompt";
+import { Framework, PromptFormData, Notification, NotificationType } from "@/types/prompt";
+import Toast from "./Toast";
+import ConfirmationModal from "./ConfirmationModal";
 
 const INITIAL_DATA: PromptFormData = {
   intent: "", details: "", examples: "", action: "", limit: "",
@@ -20,9 +22,45 @@ export default function PromptGenerator() {
   const [output, setOutput] = useState("");
   const [showResult, setShowResult] = useState(false);
   const [isImproving, setIsImproving] = useState(false);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [confirmState, setConfirmState] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm?: () => void;
+    onCancel?: () => void;
+  }>({ isOpen: false, title: "", message: "" });
 
   const resultRef = useRef<HTMLDivElement>(null);
   const formRef = useRef<HTMLDivElement>(null);
+
+  const addNotification = (type: NotificationType, message: string) => {
+    const id = Math.random().toString(36).substring(2, 9);
+    setNotifications(prev => [...prev, { id, type, message }]);
+    setTimeout(() => removeNotification(id), 5000);
+  };
+
+  const removeNotification = (id: string) => {
+    setNotifications(prev => prev.filter(n => n.id !== id));
+  };
+
+  const requestConfirmation = (title: string, message: string): Promise<boolean> => {
+    return new Promise((resolve) => {
+      setConfirmState({
+        isOpen: true,
+        title,
+        message,
+        onConfirm: () => {
+          setConfirmState(prev => ({ ...prev, isOpen: false }));
+          resolve(true);
+        },
+        onCancel: () => {
+          setConfirmState(prev => ({ ...prev, isOpen: false }));
+          resolve(false);
+        }
+      });
+    });
+  };
 
   useEffect(() => {
     setMounted(true);
@@ -102,7 +140,7 @@ export default function PromptGenerator() {
     const missingFields = fieldsToCheck.filter(field => !data[field]?.trim());
 
     if (missingFields.length > 0) {
-      alert("Por favor, preencha todos os campos obrigatórios antes de gerar o prompt.");
+      addNotification("error", "Por favor, preencha todos os campos obrigatórios antes de gerar o prompt.");
       return false;
     }
     return true;
@@ -139,10 +177,9 @@ export default function PromptGenerator() {
         const isQuotaError = improvedData.error?.includes("429") || improvedData.error?.toLowerCase().includes("quota");
 
         if (isQuotaError) {
-          const proceed = window.confirm(
-            "A cota da IA (Groq) esgotou para este modelo.\n\n" +
-            "Deseja gerar o prompt exatamente como você digitou (sem refinamento)?\n" +
-            "Se cancelar, a aplicação será reiniciada."
+          const proceed = await requestConfirmation(
+            "Cota Excedida",
+            "A cota da IA (Groq) esgotou para este modelo. Deseja gerar o prompt sem o refinamento da IA?"
           );
 
           if (!proceed) {
@@ -150,12 +187,12 @@ export default function PromptGenerator() {
             return;
           }
         } else {
-          alert("Aviso: A IA (Groq) não conseguiu refinar este prompt. Gerando versão local. Detalhe: " + improvedData.error);
+          addNotification("warning", "A IA (Groq) não conseguiu refinar este prompt. Gerando versão local.");
         }
       }
     } catch (error: any) {
       console.error("Erro crítico na chamada da IA:", error);
-      alert("Falha técnica: " + (error.message || "Erro de rede") + ". Tente reiniciar o servidor.");
+      addNotification("error", "Falha técnica: " + (error.message || "Erro de rede") + ". Tente reiniciar o servidor.");
     } finally {
       // 2. Sempre gera o prompt (seja com dados da IA ou locais)
       const result = formatPrompt(framework, finalData, cot);
@@ -198,7 +235,7 @@ export default function PromptGenerator() {
     <div className="relative z-10">
       <section className="min-h-screen flex flex-col items-center justify-center text-center px-4 relative overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_-20%,rgba(99,102,241,0.15),transparent_50%)]" />
-        <h1 className="text-6xl md:text-8xl lg:text-9xl font-bold bg-clip-text text-transparent bg-gradient-to-b from-white via-white to-slate-500 mb-8 leading-[1.1] tracking-tight">
+        <h1 className="text-5xl sm:text-6xl md:text-8xl lg:text-9xl font-bold bg-clip-text text-transparent bg-gradient-to-b from-white via-white to-slate-500 mb-8 leading-[1.1] tracking-tight">
           PromptCreator
         </h1>
         <p className="text-lg md:text-xl text-slate-400 max-w-2xl mb-16 font-medium leading-relaxed">
@@ -218,7 +255,7 @@ export default function PromptGenerator() {
       </section>
 
       {/* FORM SECTION */}
-      <section ref={formRef} className="max-w-4xl mx-auto px-4 py-24">
+      <section ref={formRef} className="max-w-4xl mx-auto px-4 py-12 sm:py-24">
         <div className="space-y-12">
           <div className="card-container group">
             <div className="flex items-center gap-4 mb-8">
@@ -231,12 +268,12 @@ export default function PromptGenerator() {
               </div>
             </div>
 
-            <div className="flex bg-slate-950/80 p-2 rounded-2xl gap-2 border border-slate-800/50 shadow-inner mb-8">
+            <div className="grid grid-cols-1 sm:flex bg-slate-950/80 p-2 rounded-2xl gap-2 border border-slate-800/50 shadow-inner mb-8">
               {(["IDEAL", "RTF", "CREATE"] as Framework[]).map(f => (
                 <button
                   key={f}
                   onClick={() => handleFrameworkChange(f)}
-                  className={`flex-1 py-4 px-6 rounded-xl font-bold text-lg transition-all duration-300 ${framework === f
+                  className={`flex-1 py-3 sm:py-4 px-6 rounded-xl font-bold text-lg transition-all duration-300 ${framework === f
                     ? "btn-framework-active"
                     : "text-slate-500 hover:text-slate-300 hover:bg-white/5"
                     }`}
@@ -246,7 +283,7 @@ export default function PromptGenerator() {
               ))}
             </div>
 
-            <div className="p-5 bg-indigo-500/5 rounded-2xl border border-indigo-500/10 backdrop-blur-sm h-[100px] flex items-center overflow-hidden">
+            <div className="p-5 bg-indigo-500/5 rounded-2xl border border-indigo-500/10 backdrop-blur-sm h-[120px] sm:h-[100px] flex items-center overflow-hidden">
               <p className="text-slate-300 text-sm leading-relaxed font-medium">
                 {framework === "IDEAL" && "Focado em controle técnico e restrições operacionais. Perfeito para automação, análise de dados e sistemas complexos."}
                 {framework === "RTF" && "Focado em velocidade e precisão. Ideal para geração de conteúdo, e-mails e relatórios estruturados."}
@@ -256,7 +293,7 @@ export default function PromptGenerator() {
           </div>
 
           <div className="card-container group">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 mb-10">
               <div className="flex items-center gap-4">
                 <div className="p-3 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 group-hover:bg-indigo-500/20 transition-colors">
                   <Terminal className="w-6 h-6 text-indigo-400" />
@@ -344,7 +381,7 @@ export default function PromptGenerator() {
         {showResult && (
           <div ref={resultRef} className="mt-32 space-y-10 opacity-0">
             <div className="card-container group bg-slate-900/50 flex flex-col min-h-[500px] ring-1 ring-white/10 shadow-3xl">
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 mb-8">
                 <div className="flex items-center gap-4">
                   <div className="p-3 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 group-hover:bg-indigo-500/20 transition-colors">
                     <Sparkles className="w-6 h-6 text-indigo-400" />
@@ -357,7 +394,7 @@ export default function PromptGenerator() {
                 <button
                   onClick={() => {
                     navigator.clipboard.writeText(output);
-                    alert("Copiado!");
+                    addNotification("success", "Prompt copiado para a área de transferência!");
                   }}
                   className="flex items-center gap-3 px-6 py-3 bg-white/5 hover:bg-white/10 rounded-xl transition-all group/btn border border-white/5 hover:border-indigo-500/30"
                   aria-label="Copiar prompt"
@@ -386,6 +423,15 @@ export default function PromptGenerator() {
           PromptCreator © 2026 • Quantum Lab
         </p>
       </footer>
+
+      <Toast notifications={notifications} onClose={removeNotification} />
+      <ConfirmationModal
+        isOpen={confirmState.isOpen}
+        title={confirmState.title}
+        message={confirmState.message}
+        onConfirm={confirmState.onConfirm || (() => { })}
+        onCancel={confirmState.onCancel || (() => { })}
+      />
     </div>
   );
 }
@@ -393,7 +439,7 @@ export default function PromptGenerator() {
 function InputGroup({ label, value, onChange, description }: { label: string, value: string, onChange: (v: string) => void, description?: string }) {
   return (
     <div className="space-y-2">
-      <div className="flex justify-between items-end">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-1 sm:gap-0">
         <label className="input-label mb-0">
           {label} <span className="text-red-500">*</span>
         </label>
