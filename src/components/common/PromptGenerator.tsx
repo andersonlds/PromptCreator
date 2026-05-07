@@ -140,8 +140,8 @@ export default function PromptGenerator() {
 
         if (isQuotaError) {
           const proceed = window.confirm(
-            "A cota do Google Gemini esgotou para este modelo.\n\n" +
-            "Deseja gerar o prompt exatamente como você digitou (sem refinamento da IA)?\n" +
+            "A cota da IA (Groq) esgotou para este modelo.\n\n" +
+            "Deseja gerar o prompt exatamente como você digitou (sem refinamento)?\n" +
             "Se cancelar, a aplicação será reiniciada."
           );
 
@@ -150,7 +150,7 @@ export default function PromptGenerator() {
             return;
           }
         } else {
-          alert("Aviso: O Gemini não conseguiu refinar este prompt. Gerando versão local. Detalhe: " + improvedData.error);
+          alert("Aviso: A IA (Groq) não conseguiu refinar este prompt. Gerando versão local. Detalhe: " + improvedData.error);
         }
       }
     } catch (error: any) {
@@ -171,18 +171,23 @@ export default function PromptGenerator() {
   };
 
   const formatPrompt = (fw: Framework, d: PromptFormData, isCot: boolean) => {
+    // Garantir que cotInstruction seja string (evita [object Object])
+    const cotText = typeof d.cotInstruction === 'object' 
+      ? JSON.stringify(d.cotInstruction, null, 2) 
+      : d.cotInstruction;
+
     let result = "";
     if (fw === "IDEAL") {
-      const actionWithCot = isCot && d.cotInstruction
-        ? `${d.action}\nSiga esta cadeia de raciocínio antes da conclusão:\n${d.cotInstruction}`
+      const actionWithCot = isCot && cotText
+        ? `${d.action}\nSiga esta cadeia de raciocínio antes da conclusão:\n${cotText}`
         : d.action;
       result = `[INTENÇÃO]: ${d.intent}\n[DETALHES]: ${d.details}\n[EXEMPLOS]: ${d.examples}\n[AÇÃO]: ${actionWithCot}\n[LIMITE]: ${d.limit}`;
     } else if (fw === "RTF") {
       result = `[ROLE]: ${d.role}\n[TASK]: ${d.task}\n[FORMAT]: ${d.format}`;
-      if (isCot && d.cotInstruction) result += `\n[INSTRUÇÃO COT]: ${d.cotInstruction}`;
+      if (isCot && cotText) result += `\n[INSTRUÇÃO COT]: ${cotText}`;
     } else if (fw === "CREATE") {
       result = `[CHARACTER]: ${d.character}\n[REQUEST]: ${d.request}\n[ADJUSTMENT]: ${d.adjustment}\n[TYPE]: ${d.type}`;
-      if (isCot && d.cotInstruction) result += `\n[INSTRUÇÃO COT]: ${d.cotInstruction}`;
+      if (isCot && cotText) result += `\n[INSTRUÇÃO COT]: ${cotText}`;
     }
     return result.trim();
   };

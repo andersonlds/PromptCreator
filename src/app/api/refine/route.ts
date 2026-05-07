@@ -44,7 +44,7 @@ export async function POST(req: Request) {
     const systemPrompt = `Você é um Engenheiro de Prompt Sênior (Nível Master). 
     Refine os campos do framework ${framework}.
     Eleve a qualidade técnica, clareza e autoridade dos textos originais.
-    Retorne estritamente o JSON atualizado com os novos textos profissionais.`;
+    IMPORTANTE: Retorne estritamente um objeto JSON onde TODOS os valores são strings. Não use objetos aninhados ou arrays.`;
 
     const userPrompt = `DADOS ORIGINAIS: ${JSON.stringify(data)}`;
 
