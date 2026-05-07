@@ -5,15 +5,17 @@ import { Copy, Sparkles, Wand2, Terminal, Zap, ChevronDown } from "lucide-react"
 import { gsap } from "gsap";
 import { Framework, PromptFormData } from "@/types/prompt";
 
+const INITIAL_DATA: PromptFormData = {
+  intent: "", details: "", examples: "", action: "", limit: "",
+  role: "", task: "", format: "",
+  character: "", request: "", adjustment: "", type: "",
+  cotInstruction: ""
+};
+
 export default function PromptGenerator() {
   const [mounted, setMounted] = useState(false);
   const [framework, setFramework] = useState<Framework>("IDEAL");
-  const [data, setData] = useState<PromptFormData>({
-    intent: "", details: "", examples: "", action: "", limit: "",
-    role: "", task: "", format: "",
-    character: "", request: "", adjustment: "", type: "",
-    cotInstruction: ""
-  });
+  const [data, setData] = useState<PromptFormData>(INITIAL_DATA);
   const [cot, setCot] = useState(false);
   const [output, setOutput] = useState("");
   const [showResult, setShowResult] = useState(false);
@@ -25,6 +27,14 @@ export default function PromptGenerator() {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  const handleFrameworkChange = (f: Framework) => {
+    if (f === framework) return;
+    setFramework(f);
+    setData(INITIAL_DATA);
+    setCot(false);
+    setShowResult(false);
+  };
 
   useEffect(() => {
     const examples = {
@@ -220,7 +230,7 @@ export default function PromptGenerator() {
               {(["IDEAL", "RTF", "CREATE"] as Framework[]).map(f => (
                 <button
                   key={f}
-                  onClick={() => setFramework(f)}
+                  onClick={() => handleFrameworkChange(f)}
                   className={`flex-1 py-4 px-6 rounded-xl font-bold text-lg transition-all duration-300 ${framework === f
                     ? "btn-framework-active"
                     : "text-slate-500 hover:text-slate-300 hover:bg-white/5"

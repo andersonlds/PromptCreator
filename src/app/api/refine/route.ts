@@ -1,17 +1,16 @@
 import { NextResponse } from "next/server";
-import { generateWithFallback } from "@/lib/gemini";
+import { generateWithGroq } from "@/lib/groq";
 import { Framework, PromptFormData } from "@/types/prompt";
 import { limiter } from "@/lib/rate-limit";
 
 export async function POST(req: Request) {
   try {
-    // 1. Rate Limiting (Proteção contra abusos)
-    // Tenta obter o IP do cabeçalho x-forwarded-for ou usa um fallback
+    // 1. Rate Limiting
     const forwarded = req.headers.get("x-forwarded-for");
     const ip = forwarded ? forwarded.split(/, /)[0] : "127.0.0.1";
     
     try {
-      await limiter.check(5, ip); // Limite de 5 requisições por minuto por IP
+      await limiter.check(5, ip);
     } catch {
       return NextResponse.json(
         { error: "Muitas requisições. Tente novamente em um minuto." }, 
@@ -30,7 +29,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // Validação específica por framework para garantir que campos essenciais existam
     let isValid = false;
     if (framework === "IDEAL") isValid = !!data.intent;
     else if (framework === "RTF") isValid = !!data.role && !!data.task;
@@ -46,26 +44,21 @@ export async function POST(req: Request) {
     const systemPrompt = `Você é um Engenheiro de Prompt Sênior (Nível Master). 
     Refine os campos do framework ${framework}.
     Eleve a qualidade técnica, clareza e autoridade dos textos originais.
-    
-    DADOS:
-    ${JSON.stringify(data)}
-    
     Retorne estritamente o JSON atualizado com os novos textos profissionais.`;
 
-    const result = await generateWithFallback({
-      contents: [{ role: "user", parts: [{ text: systemPrompt }] }],
-      generationConfig: {
-        responseMimeType: "application/json"
-      }
-    });
+    const userPrompt = `DADOS ORIGINAIS: ${JSON.stringify(data)}`;
 
-    const response = await result.response;
-    const text = response.text();
-    const improvedData = JSON.parse(text);
+    const result = await generateWithGroq(systemPrompt, userPrompt);
+    
+    if (!result) {
+      throw new Error("Falha ao obter resposta do Groq");
+    }
+
+    const improvedData = JSON.parse(result);
 
     return NextResponse.json(improvedData);
   } catch (error: any) {
-    console.error("Erro no processamento Gemini:", error.message);
+    console.error("Erro no processamento Groq:", error.message);
     return NextResponse.json(
       { error: error.message || "Erro interno no servidor" }, 
       { status: 500 }
